@@ -39,10 +39,7 @@ def save_config(args, verbose=True):
     # Ensure the directory exists
     model_id = (args.model_id if len(args.model_id)
                 > 1 else "0" + args.model_id)
-    method_ckpt_path = os.path.join(args.checkpoint_dir,
-                                    "domain_" +
-                                    "".join([domain[0]
-                                            for domain in args.domains]),
+    method_ckpt_path = os.path.join(args.checkpoint_dir, args.dataset,
                                     args.method + "_" + model_id)
     ensure_dir(method_ckpt_path, verbose=True)
 

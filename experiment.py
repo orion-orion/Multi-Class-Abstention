@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
-import gc
 import logging
 from tqdm import tqdm
-import numpy as np
 from torch.utils.data import DataLoader
 from utils.train_utils import EarlyStopping, LRDecay
 from trainer import ModelTrainer
@@ -32,10 +30,8 @@ def run_experiment(train_dataset, valid_dataset, test_dataset, data_info, args):
                            args.optimizer, args.lr_decay,
                            patience=args.ld_patience, verbose=True)
 
-        for epoch in range(1, args.num_epoch + 1):
-            # Train one client
-            trainer.model.train()
-
+        for epoch in tqdm(range(1, args.num_epoch + 1), ascii=True):
+            # Train one epoch
             train_op(trainer, train_dataloader, epoch, args)
 
             if epoch % args.eval_interval == 0:

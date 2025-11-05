@@ -1,13 +1,6 @@
 # -*- coding: utf-8 -*-
 import gc
 import logging
-from tqdm import tqdm
-import numpy as np
-from torch.utils.data import DataLoader
-from utils.train_utils import EarlyStopping, LRDecay
-from trainer import ModelTrainer
-import torch
-device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 def train_op(trainer, train_dataloader, epoch, args):
@@ -19,7 +12,8 @@ def train_op(trainer, train_dataloader, epoch, args):
         epoch: Training epoch.
         args: Other arguments for training.
     """
-    trainer.model.train()
+    trainer.predictor.train()
+    trainer.rejector.train()
 
     loss = 0
     step = 0
@@ -55,7 +49,8 @@ def eval_op(trainer, dataloader, epoch, mode):
     Args:
         mode: `valid` or `test`.
     """
-    trainer.model.eval()
+    trainer.predictor.eval()
+    trainer.rejector.eval()
 
     n_samples, n_correct = 0, 0
     for X, y in dataloader:

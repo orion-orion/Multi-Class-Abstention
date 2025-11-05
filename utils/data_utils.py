@@ -2,11 +2,9 @@
 import os
 import numpy as np
 import torch
-from dataset import RecDataset
-from torch.utils.data import ConcatDataset
+from torch.utils.data import ConcatDataset, Subset
 from torchvision import datasets, transforms
 from torchvision.transforms import Compose, ToTensor, Normalize, ToPILImage
-from local_graph import LocalGraph
 
 
 def load_dataset(args):
@@ -85,13 +83,13 @@ def load_dataset(args):
     n_test = n_samples - n_train
     if args.val_frac > 0:
         n_val = int(n_train * (1 - args.val_frac))
-        n_train = n_train * args.val_frac
-        val_dataset = dataset[n_train: (n_train + n_val)]
+        n_train -= n_val
+        val_dataset = Subset(dataset, list(range(n_train, n_train + n_val)))
     else:
         n_val = 0
         val_dataset = None
-    train_dataset = dataset[: n_train]
-    test_dataset = dataset[n_test:]
+    train_dataset = Subset(dataset, list(range(n_train)))
+    test_dataset = Subset(dataset, list(range(n_test, n_samples)))
     data_info["n_samples"] = n_samples
     data_info["n_samples_train"] = n_train
     data_info["n_samples_valid"] = n_val

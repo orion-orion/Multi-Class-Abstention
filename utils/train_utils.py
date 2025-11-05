@@ -175,24 +175,24 @@ class EarlyStopping:
         self.patience = patience
         self.verbose = verbose
         self.counter = 0
-        # Save the best validation results (MRR) in history
+        # Save the best validation results (ACC) in history
         self.best_score = None
         self.early_stop = False
         self.delta = delta
 
     def is_increase(self, score):
-        # If MRR increases, the validation score is considered to be increasing
-        if score["MRR"] > self.best_score["MRR"] + self.delta:
+        # If ACC increases, the validation score is considered to be increasing
+        if score["ACC"] > self.best_score["ACC"] + self.delta:
             return True
         else:
             return False
 
-    def __call__(self, score, clients):
-        """Score: MRR, HR_1, HR_5, HR_10, NDCG_5, NDCG_10
+    def __call__(self, score, trainer):
+        """Score: ACC
         """
         if self.best_score is None:
             self.best_score = score
-            self.save_checkpoint(clients)
+            self.save_checkpoint(trainer)
         elif not self.is_increase(score):
             self.counter += 1
             logging.info(
@@ -202,7 +202,7 @@ class EarlyStopping:
                 self.early_stop = True
         else:
             self.best_score = score
-            self.save_checkpoint(clients)
+            self.save_checkpoint(trainer)
             self.counter = 0
 
     def save_checkpoint(self, trainer):
@@ -242,19 +242,19 @@ class LRDecay:
         self.optimizer = optimizer
         self.lr_decay = lr_decay
         self.verbose = verbose
-        # Save the best validation results (MRR) in history
+        # Save the best validation results (ACC) in history
         self.latest_score = None
         self.delta = delta
 
     def is_increase(self, score):
-        # If MRR increases, the validation score is considered to be increasing
-        if score["MRR"] > self.latest_score["MRR"] + self.delta:
+        # If ACC increases, the validation score is considered to be increasing
+        if score["ACC"] > self.latest_score["ACC"] + self.delta:
             return True
         else:
             return False
 
     def __call__(self, epoch, score, trainer):
-        """Score: MRR, HR_1, HR_5, HR_10, NDCG_5, NDCG_10
+        """Score: ACC
         """
         if self.latest_score:
             if epoch > self.decay_epoch and not self.is_increase(score) \
