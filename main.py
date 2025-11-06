@@ -25,7 +25,7 @@ def arg_parse():
     # Training part
     parser.add_argument("--method", type=str, default="Ours",
                         help="method, possible are `Ours`, `Ni+`, "
-                        "`Mao+`")
+                        "`Mao+`, `CE`")
     parser.add_argument("--log_dir", type=str,
                         default="log", help="directory of logs")
     parser.add_argument("--cuda", type=bool, default=torch.cuda.is_available())
@@ -36,7 +36,7 @@ def arg_parse():
                                                 "adamax"], default="adam",
                         help="Optimizer: sgd, adagrad, adam or adamax.")
     parser.add_argument("--lr", type=float, default=0.001,
-                        help="Applies to sgd and adagrad.")  # 0.001
+                        help="Applies to sgd, adagrad and adam.")  # 0.001
     parser.add_argument("--lr_decay", type=float, default=0.9,
                         help="Learning rate decay rate.")
     parser.add_argument("--weight_decay", type=float, default=5e-4,
@@ -53,7 +53,7 @@ def arg_parse():
     parser.add_argument("--ni_surr_type", type=str, default="MCS",
                         help="Type of Ni et al.'s surrogate loss, MCS, ACS,"
                         "OVA or CE.")
-    parser.add_argument("--mao_l_type", type=str, default="MCS",
+    parser.add_argument("--mao_l_type", type=str, default="MAE",
                         help="Type of Mao et al.'s surrogate l, MAE,"
                         "C-Hinge, or Margin.")
     parser.add_argument("--psi_type", type=str, default="exponential",
@@ -74,7 +74,6 @@ def arg_parse():
                         help="Learning rate decay patience.")
 
     args = parser.parse_args()
-    assert (args.method in ["Ours", "Ni+", "Mao+"])
     return args
 
 

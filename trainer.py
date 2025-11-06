@@ -3,10 +3,11 @@ import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from models.cnn.resnet import resnet110
+from models.cnn.resnet import resnet20, resnet32, resnet110
 from utils.io_utils import ensure_dir
 from utils import train_utils
 from losses import OurLoss, MaoLoss, NiLoss
+import logging
 
 
 class Trainer(object):
@@ -20,16 +21,13 @@ class Trainer(object):
         raise NotImplementedError
 
     def update_lr(self, new_lr):
-        if self.method == "FedHCDR":
-            train_utils.change_lr(self.hi_optimizer, new_lr)
-            train_utils.change_lr(self.lo_optimizer, new_lr)
-        else:
-            train_utils.change_lr(self.optimizer, new_lr)
+        train_utils.change_lr(self.optimizer, new_lr)
 
 
 class ModelTrainer(Trainer):
     def __init__(self, args, data_info):
         self.args = args
+        self.dataset = args.dataset
         self.method = args.method
         if args.cuda:
             torch.cuda.empty_cache()
@@ -37,19 +35,18 @@ class ModelTrainer(Trainer):
         else:
             self.device = "cpu"
         # self.device = "cuda:%s" % args.gpu if args.cuda else "cpu"
-        self.predictor = resnet110(in_channels=data_info["n_channels"],
-                                   output_size=data_info["num_cls"])\
+        self.predictor = resnet32(in_channels=data_info["n_channels"],
+                                  output_size=data_info["num_cls"])\
             .to(self.device)
-        self.rejector = resnet110(in_channels=data_info["n_channels"],
-                                  output_size=1).to(self.device)
+        self.rejector = resnet32(in_channels=data_info["n_channels"],
+                                 output_size=1).to(self.device)
         self.c = args.c
         self.checkpoint_dir = args.checkpoint_dir
         self.model_id = (args.model_id if len(args.model_id)
                          > 1 else "0" + args.model_id)
-        self.bce_criterion = nn.BCEWithLogitsLoss().to(self.device)
         if self.method == "Ours":
             self.loss_fn = OurLoss(
-                args.our_surr_type, args.psi_type, alpha=1, c=1)\
+                args.our_surr_type, args.psi_type, alpha=args.alpha, c=args.c)\
                 .to(self.device)
 
         elif self.method == "Ni+":
@@ -57,11 +54,15 @@ class ModelTrainer(Trainer):
 
         elif self.method == "Mao+":
             self.loss_fn = MaoLoss(args.mao_l_type).to(self.device)
-        else:
-            pass
 
-        self.params = list(self.predictor.parameters()) + \
-            list(self.rejector.parameters())
+        else:
+            self.loss_fn = nn.CrossEntropyLoss().to(self.device)
+
+        if self.method in ["Ours", "Ni+", "Mao+"]:
+            self.params = list(self.predictor.parameters()) + \
+                list(self.rejector.parameters())
+        else:
+            self.params = self.predictor.parameters()
 
         self.optimizer = train_utils.get_optimizer(
             args.optimizer, self.params, args.lr)
@@ -80,13 +81,17 @@ class ModelTrainer(Trainer):
         self.optimizer.zero_grad()
 
         X, y = X.to(self.device), y.to(self.device)
-        y = F.one_hot(y).bool()
+        if self.method in ["Ours", "Ni+", "Mao+"]:
+            y = F.one_hot(y).bool()
 
         # preds: (batch_size, num_classe)
         preds = self.predictor(X)
         rej_scores = self.rejector(X)
 
-        loss = self.loss_fn(preds, rej_scores, y)
+        if self.method in ["Ours", "Ni+", "Mao+"]:
+            loss = self.loss_fn(preds, rej_scores, y)
+        else:
+            loss = self.loss_fn(preds, y)
 
         loss.backward()
         self.optimizer.step()
@@ -104,10 +109,16 @@ class ModelTrainer(Trainer):
 
         preds = self.predictor(X)
 
-        if self.method == "Ours" or self.method == "Mao+":
+        if self.method == "Mao+":
+            whether_pred = torch.ones(preds.shape[0]).bool()
+        elif self.method == "Ours":
             whether_pred = self.rej_decid_fn(X)
+            logging.info("rejection ratio: %f", 1 -
+                         whether_pred.sum()/whether_pred.shape[0])
         elif self.method == "Ni+":
             whether_pred = self.conf_decid_fn(preds)
+        else:
+            whether_pred = torch.ones(preds.shape[0]).bool()
         preds, y = preds[whether_pred], y[whether_pred]
 
         _, pred_y = torch.max(preds.data, 1)
@@ -117,6 +128,8 @@ class ModelTrainer(Trainer):
         return n_correct
 
     def rej_decid_fn(self, X):
+        # logging.info("predictor's output:", self.predictor(X))
+        logging.info("rejector's output:", self.rejector(X))
         return (self.rejector(X) > 0).view(-1)
 
     def conf_decid_fn(self, preds):
@@ -131,13 +144,13 @@ class ModelTrainer(Trainer):
 
         else:
             raise Exception(
-                "Method should be one of MCS, ACS, OVA, and CE")
+                "Surrogate should be one of MCS, ACS, OVA, and CE")
 
         return whether_pred.view(-1)
 
     def save_params(self):
         ensure_dir(self.checkpoint_dir, verbose=True)
-        ckpt_filename = os.path.join(self.checkpoint_dir,
+        ckpt_filename = os.path.join(self.checkpoint_dir, self.dataset,
                                      self.method + "_" + self.model_id + ".pt")
         params = self.predictor.state_dict()
         try:
@@ -147,10 +160,10 @@ class ModelTrainer(Trainer):
             print("[ Warning: Saving failed... continuing anyway. ]")
 
     def load_params(self):
-        ckpt_filename = os.path.join(self.checkpoint_dir,
+        ckpt_filename = os.path.join(self.checkpoint_dir, self.dataset,
                                      self.method + "_" + self.model_id + ".pt")
         try:
-            checkpoint = torch.load(ckpt_filename)
+            checkpoint = torch.load(ckpt_filename, weights_only=True)
         except IOError:
             print("[ Fail: Cannot load model from {}. ]".format(ckpt_filename))
             exit(1)

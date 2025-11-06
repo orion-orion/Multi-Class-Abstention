@@ -11,7 +11,7 @@ class HingeLoss(nn.Module):
         self.c = c
 
     def forward(self, input):
-        return self.c * torch.clamp(1 - self.alpha * input, max=0)
+        return self.c * torch.clamp(1 - self.alpha * input, min=0)
 
 
 class ExponentialLoss(nn.Module):
@@ -46,8 +46,9 @@ class MAELoss(nn.Module):
     def __init__(self):
         super(MAELoss, self).__init__()
 
-    def forward(self, input):
-        return 1 - F.softmax(input)
+    def forward(self, input1, input2):
+        return 1 - (torch.exp(input1)
+                    / torch.exp(input2).sum(dim=-1)).view(-1, 1)
 
 
 class MarginLoss(nn.Module):
@@ -56,7 +57,7 @@ class MarginLoss(nn.Module):
         self.hinge_loss = HingeLoss(alpha)
 
     def forward(self, input):
-        return torch.clamp(self.hinge_loss(input), min=1)
+        return torch.clamp(self.hinge_loss(input), max=1)
 
 
 class PredictionMargin(nn.Module):
