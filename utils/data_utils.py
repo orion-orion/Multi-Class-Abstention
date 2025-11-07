@@ -4,7 +4,8 @@ import numpy as np
 import torch
 from torch.utils.data import ConcatDataset, Subset
 from torchvision import datasets, transforms
-from torchvision.transforms import Compose, ToTensor, Normalize, ToPILImage
+from torchvision.transforms import Compose, ToTensor, Normalize, \
+    ToPILImage, RandomCrop, RandomHorizontalFlip
 
 
 def load_dataset(args):
@@ -35,13 +36,14 @@ def load_dataset(args):
     elif args.dataset == "CIFAR10":
         transform = transforms.Compose(
             [
-                ToTensor(),
                 # Normalize(
                 #     (0.4914, 0.4822, 0.4465),
                 #     (0.2023, 0.1994, 0.2010)
                 # ),
-                # ToPILImage()
                 # transforms.Grayscale(num_output_channels=1)
+                RandomCrop(size=(32, 32), padding=4),
+                RandomHorizontalFlip(p=0.5),
+                ToTensor(),
             ]
         )
         train_data = datasets.CIFAR10(
