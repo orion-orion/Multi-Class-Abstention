@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import copy
 import os
 import numpy as np
 import torch
@@ -6,6 +7,7 @@ from torch.utils.data import ConcatDataset, Subset
 from torchvision import datasets, transforms
 from torchvision.transforms import Compose, ToTensor, Normalize, \
     ToPILImage, RandomCrop, RandomHorizontalFlip
+from utils.subsets import CustomSubset
 
 
 def load_dataset(args):
@@ -34,27 +36,27 @@ def load_dataset(args):
         test_data = datasets.SVHN(
             root="./data", split="byclass", download=True, transform=transform, train=False)
     elif args.dataset == "CIFAR10":
-        transform = transforms.Compose(
+        train_transform = transforms.Compose(
             [
-                # Normalize(
-                #     (0.4914, 0.4822, 0.4465),
-                #     (0.2023, 0.1994, 0.2010)
-                # ),
-                # transforms.Grayscale(num_output_channels=1)
-                RandomCrop(size=(32, 32), padding=4),
-                RandomHorizontalFlip(p=0.5),
                 ToTensor(),
+                lambda x: x - torch.mean(x, dim=(1, 2), keepdim=True),
+                RandomCrop(size=(32, 32), padding=4),
             ]
         )
         train_data = datasets.CIFAR10(
-            root="./data", download=True, transform=transform, train=True)
+            root="./data", download=True, transform=train_transform, train=True)
         # test = False，从测试集create数据
+        test_transform = transforms.Compose(
+            [
+                ToTensor(),
+                lambda x: x - torch.mean(x, dim=(1, 2), keepdim=True),
+            ]
+        )
         test_data = datasets.CIFAR10(
-            root="./data", download=True, transform=transform, train=False)
+            root="./data", download=True, transform=test_transform, train=False)
     elif args.dataset == "CIFAR100":
         transform = transforms.Compose(
             [
-                # transforms.Grayscale(num_output_channels=1)
                 ToTensor(),
             ]
         )
@@ -84,14 +86,28 @@ def load_dataset(args):
     n_train = int(n_samples * args.train_frac)
     n_test = n_samples - n_train
     if args.val_frac > 0:
-        n_val = int(n_train * (1 - args.val_frac))
+        n_val = int(n_train * args.val_frac)
         n_train -= n_val
-        val_dataset = Subset(dataset, list(range(n_train, n_train + n_val)))
+        val_dataset = CustomSubset(
+            dataset, list(range(n_train, n_train + n_val)))
     else:
         n_val = 0
         val_dataset = None
-    train_dataset = Subset(dataset, list(range(n_train)))
-    test_dataset = Subset(dataset, list(range(n_test, n_samples)))
+    train_transform = transforms.Compose(
+        [
+            # Normalize(
+            #     (0.4914, 0.4822, 0.4465),
+            #     (0.2023, 0.1994, 0.2010)
+            # ),
+            # transforms.Grayscale(num_output_channels=1)
+            RandomCrop(size=(32, 32), padding=4),
+            RandomHorizontalFlip(p=0.5),
+        ]
+    )
+    train_dataset = CustomSubset(
+        dataset, list(range(n_train)), train_transform)
+    test_dataset = CustomSubset(dataset, list(
+        range(n_test, n_samples)))
     data_info["n_samples"] = n_samples
     data_info["n_samples_train"] = n_train
     data_info["n_samples_valid"] = n_val

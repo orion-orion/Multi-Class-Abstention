@@ -158,13 +158,13 @@ class EarlyStopping:
     given patience.
     """
 
-    def __init__(self, checkpoint_path, patience=5, verbose=False, delta=0):
+    def __init__(self, checkpoint_path, patience=10, verbose=False, delta=0):
         """
         Args:
             checkpoint_path (str): Path to save model checkpoint.
             patience (int): How long to wait after last time validation score
                             decreased.
-                            Default: 7
+                            Default: 10
             verbose (bool): If True, prints a message for each validation
                             score decrease.
                             Default: False
@@ -229,7 +229,7 @@ class LRDecay:
             lr_decay (float): Learning rate decay rate.
             patience (int): How long to wait after last time validation score
                             decreased.
-                            Default: 7
+                            Default: 1
             verbose (bool): If True, prints a message for each validation
                             score decrease.
                             Default: False

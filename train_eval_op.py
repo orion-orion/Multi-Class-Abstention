@@ -28,8 +28,15 @@ def train_op(trainer, train_dataloader, epoch, args):
         epoch, args.num_epoch, loss / step))
 
 
-def cal_test_score(n_correct, n_samples):
-    return n_correct / n_samples
+def cal_test_score(n_correct, n_error, n_accept, n_reject,
+                   abst_loss, n_samples):
+    acc = n_correct / (n_accept + 1e-6)
+    acc_all = n_correct / n_samples
+    abst_loss = abst_loss / n_samples
+    misclassf_error = n_error / (n_accept + 1e-6)
+    rej_ratio = n_reject / n_samples
+
+    return acc, acc_all, abst_loss, misclassf_error, rej_ratio
 
 
 def evaluation_logging(eval_log, epoch, mode="valid"):
@@ -38,7 +45,12 @@ def evaluation_logging(eval_log, epoch, mode="valid"):
     else:
         logging.info("Test:")
 
-    logging.info("ACC: %.4f" % eval_log["ACC"])
+    logging.info("ACC: %.4f \t ACC_All: %.4f \t Abstention loss: %.4f"
+                 % (eval_log["ACC"], eval_log["ACC_All"],
+                     eval_log["Abstention loss"]))
+    logging.info("Misclassification err: %.4f \t Rejection ratio: %.4f"
+                 % (eval_log["Misclassification err"],
+                     eval_log["Rejection ratio"]))
 
     return eval_log
 
@@ -52,16 +64,26 @@ def eval_op(trainer, dataloader, epoch, mode):
     trainer.predictor.eval()
     trainer.rejector.eval()
 
-    n_samples, n_correct = 0, 0
+    abst_loss = 0.0
+    n_samples,  n_correct, \
+        n_error, n_accept, n_reject = 0, 0, 0, 0, 0
+
     for X, y in dataloader:
-        batch_n_correct = trainer.test_batch(
-            X, y)
+        batch_n_correct, batch_n_error, batch_n_accept, \
+            batch_n_reject, batch_abst_loss = trainer.test_batch(X, y)
         n_correct += batch_n_correct
+        n_error += batch_n_error
+        n_accept += batch_n_accept
+        n_reject += batch_n_reject
+        abst_loss += batch_abst_loss
         n_samples += y.shape[0]
 
     gc.collect()
-    ACC = cal_test_score(n_correct, n_samples)
-    eval_log = {"ACC": ACC}
+    acc, acc_all, abst_loss, misclassf_error, rej_ratio = cal_test_score(
+        n_correct, n_error, n_accept, n_reject, abst_loss, n_samples)
+    eval_log = {"ACC": acc, "ACC_All": acc_all, "Abstention loss": abst_loss,
+                "Misclassification err": misclassf_error,
+                "Rejection ratio": rej_ratio}
 
     evaluation_logging(
         eval_log, epoch, mode)

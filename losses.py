@@ -13,7 +13,6 @@ class OurLoss(nn.Module):
         super(OurLoss, self).__init__()
         self.surr_type = surr_type
         self.psi_type = psi_type
-        self.alpha, self.c = alpha, c
         self.label_pred = LabelPred()
         if self.surr_type == "MCS":
             self.phi = ExponentialLoss()
@@ -21,18 +20,18 @@ class OurLoss(nn.Module):
             # assert (self.psi_type == "exponential")
             self.psi_1 = ExponentialLoss(alpha=-1)
             self.psi_2 = ExponentialLoss(
-                self.alpha, self.c)
+                alpha, c)
             # self.psi_1 = HingeLoss(alpha=-1)
             # self.psi_2 = HingeLoss(
-            #     self.alpha, self.c)
+            #     alpha, c)
         else:
             self.phi = HingeLoss()
             assert (self.psi_type in ["exponential", "hinge"])
             if self.psi_type == "exponential":
                 self.psi = ExponentialLoss(
-                    self.alpha, self.c)
+                    alpha, c)
             else:
-                self.psi = HingeLoss(self.alpha, self.c)
+                self.psi = HingeLoss(alpha, c)
         self.prediction_margin = PredictionMargin()
 
     def forward(self, preds, rej_scores, y):
@@ -40,15 +39,15 @@ class OurLoss(nn.Module):
             preds = F.normalize(preds, dim=-1)
         if not torch.all((rej_scores >= -1) * (rej_scores <= 1)):
             rej_scores = F.normalize(rej_scores, dim=0)
+
         preds_y = self.label_pred(preds, y)
         margin = self.prediction_margin(preds_y, preds, y)
         # logging.info("margin: ", margin)
-        logging.info("rej_scores: ", rej_scores)
+        # logging.info("rej_scores: ", rej_scores)
         if self.surr_type == "MCS":
-            # loss = (self.phi(margin) * self.psi_1(rej_scores)).mean() \
-            #     + self.psi_2(rej_scores).mean()
-            loss = self.phi(margin).mean()
-            logging.info("loss: %f" % loss)
+            loss = (self.phi(margin) * self.psi_1(rej_scores)).mean() \
+                + self.psi_2(rej_scores).mean()
+            # logging.info("loss: %f" % loss)
 
         elif self.surr_type == "ACS":
             loss = self.phi(margin - rej_scores).mean() \
@@ -84,8 +83,8 @@ class MaoLoss(nn.Module):
     def forward(self, preds, rej_scores, y):
         if not torch.all((preds >= -1) * (preds <= 1)):
             preds = F.normalize(preds, dim=-1)
-        # if not torch.all((rej_scores >= -1) * (rej_scores <= 1)):
-        #     rej_scores = F.normalize(rej_scores, dim=0)
+        if not torch.all((rej_scores >= -1) * (rej_scores <= 1)):
+            rej_scores = F.normalize(rej_scores, dim=0)
 
         lam = torch.rand(preds.shape[0], 1)
         preds_y = self.label_pred(preds, y)
@@ -100,33 +99,36 @@ class MaoLoss(nn.Module):
             margin = self.prediction_margin(preds_y, preds, y)
             mul_cls_l = self.phi(margin)
 
-        # loss = (mul_cls_l * self.psi_1(rej_scores)).mean() \
-        #     + self.psi_2(rej_scores).mean()
-        loss = mul_cls_l.mean()
+        loss = (mul_cls_l * self.psi_1(rej_scores)).mean() \
+            + self.psi_2(rej_scores).mean()
 
         return loss
 
 
 class NiLoss(nn.Module):
-    def __init__(self, surr_type, psi_type="logistic", alpha=1, c=1):
-        super(OurLoss, self).__init__()
+    def __init__(self, surr_type, psi_type="logistic", alpha=1, c=0.1):
+        super(NiLoss, self).__init__()
         self.surr_type = surr_type
         self.psi_type = psi_type
         self.alpha, self.c = alpha, c
         self.surr_type = surr_type
         if self.surr_type == "MCS":
-            self.pw_diff = PairwiseDiff().to(self.device)
-            self.label_pred = LabelPred().to(self.device)
-            self.phi = LogisticLoss().to(self.device)
-            self.psi_1 = LogisticLoss().to(self.device)
-            self.psi_2 = LogisticLoss(alpha=1, c=self.c).to(self.device)
+            self.pw_diff = PairwiseDiff()
+            self.label_pred = LabelPred()
+            self.phi = LogisticLoss()
+            self.psi_1 = LogisticLoss(alpha=-1)
+            self.psi_2 = LogisticLoss(alpha, c)
         else:
-            self.phi = LogisticLoss().to(self.device)
-            self.psi = LogisticLoss(alpha=1, c=self.c).to(self.device)
+            self.phi = LogisticLoss()
+            self.psi = LogisticLoss(alpha, c)
 
     def forward(self, preds, rej_scores, y):
-        preds_y = self.label_pred(preds, y)
+        if not torch.all((preds >= 0) * (preds <= 1)):
+            preds = F.softmax(preds, dim=-1)
+        if not torch.all((rej_scores >= -1) * (rej_scores <= 1)):
+            rej_scores = F.normalize(rej_scores, dim=0)
 
+        preds_y = self.label_pred(preds, y)
         diff = self.pw_diff(preds_y, preds, y)
         if self.surr_type == "MCS":
             loss = (self.phi(diff).sum(

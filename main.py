@@ -35,11 +35,11 @@ def arg_parse():
     parser.add_argument("--optimizer", choices=["sgd", "adagrad", "adam",
                                                 "adamax"], default="adam",
                         help="Optimizer: sgd, adagrad, adam or adamax.")
-    parser.add_argument("--lr", type=float, default=0.001,
-                        help="Applies to sgd, adagrad and adam.")  # 0.001
+    parser.add_argument("--lr", type=float, default=0.01,
+                        help="Applies to sgd, adagrad and adam.")  # 0.01
     parser.add_argument("--lr_decay", type=float, default=0.9,
                         help="Learning rate decay rate.")
-    parser.add_argument("--weight_decay", type=float, default=5e-4,
+    parser.add_argument("--weight_decay", type=float, default=1e-4,
                         help="Weight decay (L2 loss on parameters).")
     parser.add_argument("--decay_epoch", type=int, default=10,
                         help="Decay learning rate after this epoch.")

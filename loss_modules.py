@@ -31,7 +31,7 @@ class LogisticLoss(nn.Module):
         self.c = c
 
     def forward(self, input):
-        return self.c * torch.log1p(self.alpha * input)
+        return self.c * torch.log1p(torch.exp(-self.alpha * input))
 
 
 class LabelPred(nn.Module):
@@ -74,7 +74,7 @@ class PairwiseDiff(nn.Module):
         super(PairwiseDiff, self).__init__()
 
     def forward(self, input_1, input_2, excl_idx=None):
-        if excl_idx:
+        if excl_idx is not None:
             pairwise_diff_matrix = \
                 input_1.view(-1, 1) - \
                 input_2[~excl_idx].view(input_2.shape[0], -1)

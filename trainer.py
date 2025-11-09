@@ -2,6 +2,7 @@
 import os
 import torch
 import torch.nn as nn
+import torch.optim as optim
 import torch.nn.functional as F
 from models.cnn.resnet import resnet20, resnet32, resnet110
 from utils.io_utils import ensure_dir
@@ -50,10 +51,13 @@ class ModelTrainer(Trainer):
                 .to(self.device)
 
         elif self.method == "Ni+":
-            self.loss_fn = NiLoss(args.ni_surr_type).to(self.device)
+            self.loss_fn = NiLoss(
+                args.ni_surr_type, alpha=args.alpha, c=args.c).to(self.device)
+            self.ni_surr_type = args.ni_surr_type
 
         elif self.method == "Mao+":
-            self.loss_fn = MaoLoss(args.mao_l_type).to(self.device)
+            self.loss_fn = MaoLoss(
+                args.mao_l_type, alpha=args.alpha, c=args.c).to(self.device)
 
         else:
             self.loss_fn = nn.CrossEntropyLoss().to(self.device)
@@ -65,8 +69,7 @@ class ModelTrainer(Trainer):
             self.params = self.predictor.parameters()
 
         self.optimizer = train_utils.get_optimizer(
-            args.optimizer, self.params, args.lr)
-
+            args.optimizer, self.params, args.lr, args.weight_decay)
         self.step = 0
 
     def train_batch(self, X, y, epoch, args):
@@ -109,23 +112,24 @@ class ModelTrainer(Trainer):
 
         preds = self.predictor(X)
 
-        if self.method == "Mao+":
-            whether_pred = torch.ones(preds.shape[0]).bool()
-        elif self.method == "Ours":
+        if self.method in ["Ours", "Mao+"]:
             whether_pred = self.rej_decid_fn(X)
-            logging.info("rejection ratio: %f", 1 -
-                         whether_pred.sum()/whether_pred.shape[0])
         elif self.method == "Ni+":
             whether_pred = self.conf_decid_fn(preds)
         else:
             whether_pred = torch.ones(preds.shape[0]).bool()
+
         preds, y = preds[whether_pred], y[whether_pred]
 
         _, pred_y = torch.max(preds.data, 1)
 
         n_correct = (pred_y == y).sum().item()
+        n_accept = whether_pred.sum().item()
+        n_reject = whether_pred.shape[0] - n_accept
+        n_error = n_accept - n_correct
+        abst_loss = self.abstention_loss(n_error, n_reject, self.c)
 
-        return n_correct
+        return n_correct, n_error, n_accept, n_reject, abst_loss
 
     def rej_decid_fn(self, X):
         # logging.info("predictor's output:", self.predictor(X))
@@ -134,19 +138,25 @@ class ModelTrainer(Trainer):
 
     def conf_decid_fn(self, preds):
         if self.ni_surr_type == "MCS" or self.ni_surr_type == "ACS":
-            whether_pred = torch.max(F.softmax(preds), -1)[0] > 1 - self.c
+            whether_pred = torch.max(
+                F.softmax(preds, dim=-1), -1)[0] > 1 - self.c
 
         elif self.ni_surr_type == "OVA":
             whether_pred = torch.max(F.sigmoid(preds), -1)[0] > 1 - self.c
 
         elif self.ni_surr_type == "CE":
-            whether_pred = torch.max(F.softmax(preds), -1)[0] > 1 - self.c
+            whether_pred = torch.max(
+                F.softmax(preds, dim=-1), -1)[0] > 1 - self.c
 
         else:
             raise Exception(
                 "Surrogate should be one of MCS, ACS, OVA, and CE")
 
         return whether_pred.view(-1)
+
+    @staticmethod
+    def abstention_loss(n_error, n_reject, c):
+        return n_error + c * n_reject
 
     def save_params(self):
         ensure_dir(self.checkpoint_dir, verbose=True)
