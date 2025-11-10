@@ -40,7 +40,7 @@ def run_experiment(train_dataset, valid_dataset, test_dataset, data_info, args):
 
                 # Early Stopping. Here only compare the current results with
                 # the best results
-                early_stopping(eval_log, trainer)
+                early_stopping(eval_log["ACC_all"], trainer)
                 if early_stopping.early_stop:
                     logging.info("Early stopping")
                     break

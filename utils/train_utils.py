@@ -12,23 +12,23 @@ from torch.optim.optimizer import Optimizer
 
 class MyAdagrad(Optimizer):
     """My modification of the Adagrad optimizer that allows to specify an
-    initial ACC_Allumulater value. This mimics the behavior of the default Adagrad
+    initial ACC_allumulater value. This mimics the behavior of the default Adagrad
     implementation in Tensorflow. The default PyTorch Adagrad uses 0 for
-    initial ACC_Allulmulator value.
+    initial ACC_allulmulator value.
 
     Args:
         params (iterable): Iterable of parameters to optimize or dicts defining
             parameter groups
         lr (float, optional): Learning rate (default: 1e-2)
         lr_decay (float, optional): Learning rate decay (default: 0)
-        init_ACC_Allu_value (float, optional): Initial ACC_Allumulater value.
+        init_ACC_allu_value (float, optional): Initial ACC_allumulater value.
         weight_decay (float, optional): Weight decay (L2 penalty) (default: 0)
     """
 
-    def __init__(self, params, lr=1e-2, lr_decay=0, init_ACC_Allu_value=0.1,
+    def __init__(self, params, lr=1e-2, lr_decay=0, init_ACC_allu_value=0.1,
                  weight_decay=0):
         defaults = dict(lr=lr, lr_decay=lr_decay,
-                        init_ACC_Allu_value=init_ACC_Allu_value,
+                        init_ACC_allu_value=init_ACC_allu_value,
                         weight_decay=weight_decay)
         super(MyAdagrad, self).__init__(params, defaults)
 
@@ -37,7 +37,7 @@ class MyAdagrad(Optimizer):
                 state = self.state[p]
                 state["step"] = 0
                 state["sum"] = torch.ones(p.data.size()).type_as(
-                    p.data) * init_ACC_Allu_value
+                    p.data) * init_ACC_allu_value
 
     def share_memory(self):
         for group in self.param_groups:
@@ -105,8 +105,8 @@ def get_optimizer(name, parameters, lr, l2=0):
         return torch.optim.SGD(parameters, lr=lr, weight_decay=l2,
                                momentum=0.9)
     elif name in ["adagrad", "myadagrad"]:
-        # Use my own adagrad to allow for init ACC_Allumulator value
-        return MyAdagrad(parameters, lr=lr, init_ACC_Allu_value=0.1,
+        # Use my own adagrad to allow for init ACC_allumulator value
+        return MyAdagrad(parameters, lr=lr, init_ACC_allu_value=0.1,
                          weight_decay=l2)
     elif name == "adam":
         # Use default lr
@@ -176,20 +176,21 @@ class EarlyStopping:
         self.patience = patience
         self.verbose = verbose
         self.counter = 0
-        # Save the best validation results (ACC_All) in history
+        # Save the best validation results (score) in history
         self.best_score = None
         self.early_stop = False
         self.delta = delta
 
     def is_increase(self, score):
-        # If ACC_All increases, the validation score is considered to be increasing
-        if score["ACC_All"] > self.best_score["ACC_All"] + self.delta:
+        # If score increases, the validation score is considered to be \
+        # increasing
+        if score > self.best_score + self.delta:
             return True
         else:
             return False
 
     def __call__(self, score, trainer):
-        """Score: ACC_All
+        """score: validation score
         """
         if self.best_score is None:
             self.best_score = score
@@ -243,19 +244,19 @@ class LRDecay:
         self.optimizer = optimizer
         self.lr_decay = lr_decay
         self.verbose = verbose
-        # Save the best validation results (ACC_All) in history
+        # Save the best validation results (ACC_all) in history
         self.latest_score = None
         self.delta = delta
 
     def is_increase(self, score):
-        # If ACC_All increases, the validation score is considered to be increasing
-        if score["ACC_All"] > self.latest_score["ACC_All"] + self.delta:
+        # If ACC_all increases, the validation score is considered to be increasing
+        if score["ACC_all"] > self.latest_score["ACC_all"] + self.delta:
             return True
         else:
             return False
 
     def __call__(self, epoch, score, trainer):
-        """Score: ACC_All
+        """Score: ACC_all
         """
         if self.latest_score:
             if epoch > self.decay_epoch and not self.is_increase(score) \

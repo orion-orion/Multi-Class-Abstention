@@ -30,13 +30,13 @@ def train_op(trainer, train_dataloader, epoch, args):
 
 def cal_test_score(n_correct, n_error, n_accept, n_reject,
                    abst_loss, n_samples):
-    acc = n_correct / (n_accept + 1e-6)
-    acc_all = n_correct / n_samples
+    ACC_acpt = n_correct / (n_accept + 1e-6)
+    ACC_all = n_correct / n_samples
     abst_loss = abst_loss / n_samples
     misclassf_error = n_error / (n_accept + 1e-6)
     rej_ratio = n_reject / n_samples
 
-    return acc, acc_all, abst_loss, misclassf_error, rej_ratio
+    return ACC_acpt, ACC_all, abst_loss, misclassf_error, rej_ratio
 
 
 def evaluation_logging(eval_log, epoch, mode="valid"):
@@ -45,8 +45,8 @@ def evaluation_logging(eval_log, epoch, mode="valid"):
     else:
         logging.info("Test:")
 
-    logging.info("ACC: %.4f \t ACC_All: %.4f \t Abstention loss: %.4f"
-                 % (eval_log["ACC"], eval_log["ACC_All"],
+    logging.info("ACC_acpt: %.4f \t ACC_all: %.4f \t Abstention loss: %.4f"
+                 % (eval_log["ACC_acpt"], eval_log["ACC_all"],
                      eval_log["Abstention loss"]))
     logging.info("Misclassification err: %.4f \t Rejection ratio: %.4f"
                  % (eval_log["Misclassification err"],
@@ -79,9 +79,9 @@ def eval_op(trainer, dataloader, epoch, mode):
         n_samples += y.shape[0]
 
     gc.collect()
-    acc, acc_all, abst_loss, misclassf_error, rej_ratio = cal_test_score(
+    ACC_acpt, ACC_all, abst_loss, misclassf_error, rej_ratio = cal_test_score(
         n_correct, n_error, n_accept, n_reject, abst_loss, n_samples)
-    eval_log = {"ACC": acc, "ACC_All": acc_all, "Abstention loss": abst_loss,
+    eval_log = {"ACC_acpt": ACC_acpt, "ACC_all": ACC_all, "Abstention loss": abst_loss,
                 "Misclassification err": misclassf_error,
                 "Rejection ratio": rej_ratio}
 

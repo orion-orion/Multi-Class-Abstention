@@ -76,9 +76,12 @@ class MaoLoss(nn.Module):
         if self.psi_type == "exponential":
             self.psi_1 = ExponentialLoss(alpha=-1)
             self.psi_2 = ExponentialLoss(alpha, c)
-        else:
+        elif self.psi_type == "hinge":
             self.psi_1 = HingeLoss(alpha=-1)
             self.psi_2 = HingeLoss(alpha, c)
+        elif self.psi_type == "logistic":
+            self.psi_1 = LogisticLoss(alpha=-1)
+            self.psi_2 = LogisticLoss(alpha, c)
 
     def forward(self, preds, rej_scores, y):
         if not torch.all((preds >= -1) * (preds <= 1)):
@@ -106,7 +109,7 @@ class MaoLoss(nn.Module):
 
 
 class NiLoss(nn.Module):
-    def __init__(self, surr_type, psi_type="logistic", alpha=1, c=0.1):
+    def __init__(self, surr_type, psi_type="logistic", alpha=1, c=0.01):
         super(NiLoss, self).__init__()
         self.surr_type = surr_type
         self.psi_type = psi_type

@@ -133,7 +133,7 @@ class ModelTrainer(Trainer):
 
     def rej_decid_fn(self, X):
         # logging.info("predictor's output:", self.predictor(X))
-        logging.info("rejector's output:", self.rejector(X))
+        # logging.info("rejector's output:", self.rejector(X))
         return (self.rejector(X) > 0).view(-1)
 
     def conf_decid_fn(self, preds):
