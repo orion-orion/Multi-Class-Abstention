@@ -14,17 +14,22 @@ class OurLoss(nn.Module):
         self.surr_type = surr_type
         self.psi_type = psi_type
         self.label_pred = LabelPred()
+        self.ce = nn.CrossEntropyLoss()
         if self.surr_type == "MCS":
-            self.phi = ExponentialLoss()
+            # self.phi = ExponentialLoss()
             # self.phi = HingeLoss()
+            self.phi = LogisticLoss()
             # assert (self.psi_type == "exponential")
-            self.psi_1 = ExponentialLoss(alpha=-1)
-            self.psi_2 = ExponentialLoss(
-                alpha, c)
+            # self.psi_1 = ExponentialLoss(alpha=-1)
+            # self.psi_2 = ExponentialLoss(
+            #     alpha, c)
             # self.psi_1 = HingeLoss(alpha=-1)
             # self.psi_2 = HingeLoss(
             #     alpha, c)
-        else:
+            self.psi_1 = LogisticLoss(alpha=-1)
+            self.psi_2 = LogisticLoss(
+                alpha, c)
+        elif self.surr_type == "ACS":
             self.phi = HingeLoss()
             assert (self.psi_type in ["exponential", "hinge"])
             if self.psi_type == "exponential":
@@ -32,11 +37,17 @@ class OurLoss(nn.Module):
                     alpha, c)
             else:
                 self.psi = HingeLoss(alpha, c)
+
+        else:
+            raise Exception(
+                "Method should be one of MCS and ACS")
         self.prediction_margin = PredictionMargin()
 
     def forward(self, preds, rej_scores, y):
-        if not torch.all((preds >= -1) * (preds <= 1)):
-            preds = F.normalize(preds, dim=-1)
+        # # Needed for phi of exponential and hinge
+        # if not torch.all((preds >= -1) * (preds <= 1)):
+        #     preds = F.normalize(preds, dim=-1)
+        # To avoid gradient explosition
         if not torch.all((rej_scores >= -1) * (rej_scores <= 1)):
             rej_scores = F.normalize(rej_scores, dim=0)
 
@@ -47,14 +58,28 @@ class OurLoss(nn.Module):
         if self.surr_type == "MCS":
             loss = (self.phi(margin) * self.psi_1(rej_scores)).mean() \
                 + self.psi_2(rej_scores).mean()
+            # loss = self.phi(margin).mean()
             # logging.info("loss: %f" % loss)
 
         elif self.surr_type == "ACS":
             loss = self.phi(margin - rej_scores).mean() \
-                + self.psi_2(rej_scores).mean()
+                + self.psi(rej_scores).mean()
         else:
             raise Exception(
                 "Method should be one of MCS and ACS")
+        return loss
+
+    def forward_stage1(self, preds, y):
+        return self.ce(preds, y)
+
+    def forward_stage2(self, preds, rej_scores, y):
+        _, pred_y = torch.max(preds.data, 1)
+
+        zero_one_clf_loss = (pred_y == y)
+
+        loss = (zero_one_clf_loss * self.psi_1(rej_scores)).mean() \
+            + self.psi_2(rej_scores).mean()
+
         return loss
 
 
@@ -65,6 +90,7 @@ class MaoLoss(nn.Module):
         self.psi_type = psi_type
         self.alpha, self.c = alpha, c
         self.label_pred = LabelPred()
+        self.ce = nn.CrossEntropyLoss()
         if self.l_type == "MAE":
             self.mae = MAELoss()
         elif self.l_type == "C-Hinge":
@@ -103,6 +129,21 @@ class MaoLoss(nn.Module):
             mul_cls_l = self.phi(margin)
 
         loss = (mul_cls_l * self.psi_1(rej_scores)).mean() \
+            + self.psi_2(rej_scores).mean()
+
+        return loss
+
+    def forward_stage1(self, preds, y):
+        return self.ce(preds, y)
+
+    def forward_stage2(self, preds, rej_scores, y):
+        if not torch.all((rej_scores >= -1) * (rej_scores <= 1)):
+            rej_scores = F.normalize(rej_scores, dim=0)
+        _, pred_y = torch.max(preds.data, 1)
+
+        zero_one_clf_loss = (pred_y != y).float().view(-1, 1)
+
+        loss = (zero_one_clf_loss * self.psi_1(rej_scores)).mean() \
             + self.psi_2(rej_scores).mean()
 
         return loss

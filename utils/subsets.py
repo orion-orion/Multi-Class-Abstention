@@ -1,11 +1,13 @@
-from torch.utils.data import Subset
+from torch.utils.data import Dataset
 
 
-class CustomSubset(Subset):
+class CustomSubset(Dataset):
     '''A custom subset class with customizable data transformation'''
 
     def __init__(self, dataset, indices, subset_transform=None):
-        super().__init__(dataset, indices)
+        # super().__init__(dataset, indices)
+        super().__init__()
+        self.dataset, self.indices = dataset, indices
         self.subset_transform = subset_transform
 
     def __getitem__(self, idx):

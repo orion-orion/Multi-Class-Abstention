@@ -30,6 +30,7 @@ class ModelTrainer(Trainer):
         self.args = args
         self.dataset = args.dataset
         self.method = args.method
+        self.mode = "regular"
         if args.cuda:
             torch.cuda.empty_cache()
             self.device = "cuda:%s" % args.gpu
@@ -62,14 +63,28 @@ class ModelTrainer(Trainer):
         else:
             self.loss_fn = nn.CrossEntropyLoss().to(self.device)
 
-        if self.method in ["Ours", "Ni+", "Mao+"]:
-            self.params = list(self.predictor.parameters()) + \
-                list(self.rejector.parameters())
-        else:
+    def init_optimzer(self, args, mode="regular", whether_valid=True):
+        if mode == "regular":
+            if self.method in ["Ours", "Ni+", "Mao+"]:
+                self.params = list(self.predictor.parameters()) + \
+                    list(self.rejector.parameters())
+            else:
+                self.params = self.predictor.parameters()
+
+        elif mode == "stage1":
             self.params = self.predictor.parameters()
+        else:
+            self.params = self.rejector.parameters()
 
         self.optimizer = train_utils.get_optimizer(
             args.optimizer, self.params, args.lr, args.weight_decay)
+        self.whether_valid = whether_valid
+        if not self.whether_valid:
+            self.scheduler = torch.optim.lr_scheduler.MultiStepLR(
+                self.optimizer, milestones=(4000, 6000), gamma=0.1)
+            # T_0 = 10
+            # self.scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+            #     self.optimizer, T_0)
         self.step = 0
 
     def train_batch(self, X, y, epoch, args):
@@ -84,20 +99,37 @@ class ModelTrainer(Trainer):
         self.optimizer.zero_grad()
 
         X, y = X.to(self.device), y.to(self.device)
-        if self.method in ["Ours", "Ni+", "Mao+"]:
+        if self.method in ["Ours", "Ni+", "Mao+"] and self.mode == "regular":
             y = F.one_hot(y).bool()
 
         # preds: (batch_size, num_classe)
         preds = self.predictor(X)
         rej_scores = self.rejector(X)
 
-        if self.method in ["Ours", "Ni+", "Mao+"]:
+        if self.method == "Mao+":
+            if self.mode == "stage1":
+                loss = self.loss_fn.forward_stage1(preds, y)
+            elif self.mode == "stage2":
+                loss = self.loss_fn.forward_stage2(preds, rej_scores, y)
+            else:
+                loss = self.loss_fn(preds, rej_scores, y)
+        elif self.method == "Ours":
+            if self.mode == "stage1":
+                loss = self.loss_fn.forward_stage1(preds, y)
+            elif self.mode == "stage2":
+                loss = self.loss_fn.forward_stage2(preds, rej_scores, y)
+            else:
+                loss = self.loss_fn(preds, rej_scores, y)
+
+        elif self.method in ["Ours", "Ni+"]:
             loss = self.loss_fn(preds, rej_scores, y)
         else:
             loss = self.loss_fn(preds, y)
 
         loss.backward()
         self.optimizer.step()
+        if not self.whether_valid:
+            self.scheduler.step()
         self.step += 1
         return loss.item()
 
@@ -112,8 +144,16 @@ class ModelTrainer(Trainer):
 
         preds = self.predictor(X)
 
-        if self.method in ["Ours", "Mao+"]:
-            whether_pred = self.rej_decid_fn(X)
+        if self.method == "Ours":
+            if self.mode == "stage1":
+                whether_pred = torch.ones(preds.shape[0]).bool()
+            else:
+                whether_pred = self.rej_decid_fn(X)
+        elif self.method == "Mao+":
+            if self.mode == "stage1":
+                whether_pred = torch.ones(preds.shape[0]).bool()
+            else:
+                whether_pred = self.rej_decid_fn(X)
         elif self.method == "Ni+":
             whether_pred = self.conf_decid_fn(preds)
         else:

@@ -249,14 +249,14 @@ class LRDecay:
         self.delta = delta
 
     def is_increase(self, score):
-        # If ACC_all increases, the validation score is considered to be increasing
-        if score["ACC_all"] > self.latest_score["ACC_all"] + self.delta:
+        # If score increases, the validation score is considered to be increasing
+        if score > self.latest_score + self.delta:
             return True
         else:
             return False
 
     def __call__(self, epoch, score, trainer):
-        """Score: ACC_all
+        """score: validation score
         """
         if self.latest_score:
             if epoch > self.decay_epoch and not self.is_increase(score) \

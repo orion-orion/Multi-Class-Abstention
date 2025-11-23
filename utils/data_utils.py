@@ -40,7 +40,6 @@ def load_dataset(args):
             [
                 ToTensor(),
                 lambda x: x - torch.mean(x, dim=(1, 2), keepdim=True),
-                RandomCrop(size=(32, 32), padding=4),
             ]
         )
         train_data = datasets.CIFAR10(
@@ -80,37 +79,56 @@ def load_dataset(args):
         train_data.classes)
     labels = np.concatenate(
         [np.array(train_data.targets), np.array(test_data.targets)], axis=0)
-    dataset = ConcatDataset([train_data, test_data])
+    if args.train_val_frac:
+        train_frac, val_frac = [float(x) for x in args.train_val_frac]
+        dataset = ConcatDataset([train_data, test_data])
 
-    n_samples = len(dataset)
-    n_train = int(n_samples * args.train_frac)
-    n_test = n_samples - n_train
-    if args.val_frac > 0:
-        n_val = int(n_train * args.val_frac)
-        n_train -= n_val
-        val_dataset = CustomSubset(
-            dataset, list(range(n_train, n_train + n_val)))
+        n_samples = len(dataset)
+        n_train = int(n_samples * train_frac)
+        n_test = n_samples - n_train
+        if val_frac > 0:
+            n_val = int(n_train * val_frac)
+            n_train -= n_val
+            val_dataset = CustomSubset(
+                dataset, np.arange(n_train, n_train + n_val))
+        else:
+            n_val = 0
+            val_dataset = None
+        train_transform = transforms.Compose(
+            [
+                # Normalize(
+                #     (0.4914, 0.4822, 0.4465),
+                #     (0.2023, 0.1994, 0.2010)
+                # ),
+                # transforms.Grayscale(num_output_channels=1)
+                RandomCrop(size=(32, 32), padding=4),
+                RandomHorizontalFlip(p=0.5),
+            ]
+        )
+        train_dataset = CustomSubset(
+            dataset, np.arange(n_train), train_transform)
+        test_dataset = CustomSubset(
+            dataset, np.arange(n_train + n_val - 1, n_samples))
+        data_info["n_samples"] = n_samples
+        data_info["n_samples_train"] = n_train
     else:
-        n_val = 0
+        train_transform = transforms.Compose(
+            [
+                # Normalize(
+                #     (0.4914, 0.4822, 0.4465),
+                #     (0.2023, 0.1994, 0.2010)
+                # ),
+                # transforms.Grayscale(num_output_channels=1)
+                RandomCrop(size=(32, 32), padding=4),
+                RandomHorizontalFlip(p=0.5),
+            ]
+        )
+        n_train, n_test = len(train_data), len(test_data)
+        train_dataset = CustomSubset(
+            train_data, np.arange(n_train), train_transform)
+        test_dataset = CustomSubset(test_data, np.arange(n_test))
         val_dataset = None
-    train_transform = transforms.Compose(
-        [
-            # Normalize(
-            #     (0.4914, 0.4822, 0.4465),
-            #     (0.2023, 0.1994, 0.2010)
-            # ),
-            # transforms.Grayscale(num_output_channels=1)
-            RandomCrop(size=(32, 32), padding=4),
-            RandomHorizontalFlip(p=0.5),
-        ]
-    )
-    train_dataset = CustomSubset(
-        dataset, list(range(n_train)), train_transform)
-    test_dataset = CustomSubset(dataset, list(
-        range(n_test, n_samples)))
-    data_info["n_samples"] = n_samples
-    data_info["n_samples_train"] = n_train
-    data_info["n_samples_valid"] = n_val
-    data_info["n_samples_test"] = n_test
+        data_info["n_samples"] = n_train + n_test
+        data_info["n_samples_train"] = n_train
 
-    return train_dataset, test_dataset, val_dataset, data_info
+        return train_dataset, val_dataset, test_dataset, data_info

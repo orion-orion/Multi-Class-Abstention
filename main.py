@@ -18,10 +18,11 @@ def arg_parse():
     parser.add_argument("--dataset", type=str, default="CIFAR10",
                         help="name of dataset;"
                         "possible are `SVHN`, `CIFAR10`，`CIFAR100`")
-    parser.add_argument("--train_frac", type=float, default=0.8,
-                        help="fraction of validation samples in train samples")
-    parser.add_argument("--val_frac", type=float, default=0.2,
-                        help="fraction of validation samples in train samples")
+    parser.add_argument("--train_val_frac", nargs='+',  default=[],
+                        help=r"Customize the fraction of training samples"
+                        r"in all samples, and that of validation samples "
+                        r"in training samples, for example, 0.8 0.2.")
+
     # Training part
     parser.add_argument("--method", type=str, default="Ours",
                         help="method, possible are `Ours`, `Ni+`, "
@@ -53,6 +54,12 @@ def arg_parse():
     parser.add_argument("--ni_surr_type", type=str, default="MCS",
                         help="Type of Ni et al.'s surrogate loss, MCS, ACS,"
                         "OVA or CE.")
+    parser.add_argument("--mao_mode", type=str, default="single-stage",
+                        help="Mode of Mao et al.'s training, single-stage,"
+                        "two-stage.")
+    parser.add_argument("--ours_mode", type=str, default="single-stage",
+                        help="Mode of our method's training, single-stage,"
+                        "two-stage.")
     parser.add_argument("--mao_l_type", type=str, default="MAE",
                         help="Type of Mao et al.'s surrogate l, MAE,"
                         "C-Hinge, or Margin.")
