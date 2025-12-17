@@ -39,7 +39,7 @@ class LabelPred(nn.Module):
         super(LabelPred, self).__init__()
 
     def forward(self, preds, y):
-        return preds[y]
+        return preds[y].view(-1, 1)
 
 
 class MAELoss(nn.Module):
@@ -47,8 +47,11 @@ class MAELoss(nn.Module):
         super(MAELoss, self).__init__()
 
     def forward(self, input1, input2):
-        return 1 - (torch.exp(input1)
-                    / torch.exp(input2).sum(dim=-1)).view(-1, 1)
+        # To avoid numerical overflow and underfolow
+        epsilon, _ = torch.max(input2, dim=-1, keepdim=True)
+        return 1 - (torch.exp(input1 - epsilon)
+                    / torch.sum(torch.exp(input2 - epsilon), dim=-1,
+                                keepdim=True))
 
 
 class MarginLoss(nn.Module):
@@ -65,8 +68,9 @@ class PredictionMargin(nn.Module):
         super(PredictionMargin, self).__init__()
 
     def forward(self, input_1, input_2, excl_idx=None):
-        return input_1.view(-1, 1) - torch.max(
-            input_2[~excl_idx].view(input_2.shape[0], -1), dim=-1)[0]
+        return input_1 - torch.max(
+            input_2[~excl_idx].view(input_2.shape[0], -1), dim=-1,
+            keepdim=True)[0]
 
 
 class PairwiseDiff(nn.Module):
@@ -76,8 +80,8 @@ class PairwiseDiff(nn.Module):
     def forward(self, input_1, input_2, excl_idx=None):
         if excl_idx is not None:
             pairwise_diff_matrix = \
-                input_1.view(-1, 1) - \
+                input_1 - \
                 input_2[~excl_idx].view(input_2.shape[0], -1)
         else:
-            pairwise_diff_matrix = (input_1.view(-1, 1) - input_2)
+            pairwise_diff_matrix = (input_1 - input_2)
         return pairwise_diff_matrix

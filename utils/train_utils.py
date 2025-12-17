@@ -158,10 +158,12 @@ class EarlyStopping:
     given patience.
     """
 
-    def __init__(self, checkpoint_path, patience=10, verbose=False, delta=0):
+    def __init__(self, checkpoint_path, wait_epoch=100, patience=10, verbose=False, delta=0):
         """
         Args:
             checkpoint_path (str): Path to save model checkpoint.
+            wait_epoch (int): Epochs to wait before early stopping.
+                              Default: 100
             patience (int): How long to wait after last time validation score
                             decreased.
                             Default: 10
@@ -172,6 +174,7 @@ class EarlyStopping:
                            as an improvement.
                            Default: 0
         """
+        self.wait_epoch = wait_epoch
         self.checkpoint_path = checkpoint_path
         self.patience = patience
         self.verbose = verbose
@@ -189,26 +192,30 @@ class EarlyStopping:
         else:
             return False
 
-    def __call__(self, score, trainer):
+    def __call__(self, score, trainer, epoch):
         """score: validation score
         """
         if self.best_score is None:
             self.best_score = score
             self.save_checkpoint(trainer)
         elif not self.is_increase(score):
-            self.counter += 1
-            logging.info(
-                f"Early Stopping counter: {self.counter} "
-                f"out of {self.patience}")
-            if self.counter >= self.patience:
-                self.early_stop = True
+            if epoch <= self.wait_epoch:
+                logging.info(
+                    "Waiting period with no early stopping.")
+            else:
+                self.counter += 1
+                logging.info(
+                    f"Early Stopping counter: {self.counter} "
+                    f"out of {self.patience}")
+                if self.counter >= self.patience:
+                    self.early_stop = True
         else:
             self.best_score = score
             self.save_checkpoint(trainer)
             self.counter = 0
 
     def save_checkpoint(self, trainer):
-        """Saves the model when validation score increase.
+        """Saves the model when validation score increases.
         """
         if self.verbose:
             logging.info("Validation score increased.  Saving model ...")
@@ -244,6 +251,7 @@ class LRDecay:
         self.optimizer = optimizer
         self.lr_decay = lr_decay
         self.verbose = verbose
+        self.counter = 0
         # Save the best validation results (ACC_all) in history
         self.latest_score = None
         self.delta = delta

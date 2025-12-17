@@ -7,18 +7,21 @@ from trainer import ModelTrainer
 from train_eval_op import train_op, eval_op
 
 
-def load_and_eval_model(trainer, test_dataloader):
+def load_and_eval_model(trainer, test_dataloader, args):
     trainer.load_params()
-    eval_op(trainer, test_dataloader, 0, mode="test")
+    eval_op(trainer, test_dataloader, 0, args, mode="test")
 
 
 def training_loop(trainer, train_dataloader, valid_dataloader, test_dataloader,
                   args, mode="regular"):
     trainer.mode = mode
     whether_valid = True if valid_dataloader else False
+    if not args.method == "Ours":
+        trainer.init_rejector(mode)
     trainer.init_optimzer(args, mode, whether_valid)
     early_stopping = EarlyStopping(
-        args.checkpoint_dir, patience=args.es_patience, verbose=True)
+        args.checkpoint_dir, wait_epoch=args.wait_epoch,
+        patience=args.es_patience, verbose=True)
     lr_decay = LRDecay(args.lr, args.decay_epoch,
                        args.optimizer, args.lr_decay,
                        patience=args.ld_patience, verbose=True)
@@ -29,22 +32,23 @@ def training_loop(trainer, train_dataloader, valid_dataloader, test_dataloader,
 
         if whether_valid and epoch % args.eval_interval == 0:
             eval_log = eval_op(trainer, valid_dataloader,
-                               epoch, mode="valid")
+                               epoch, args, mode="valid")
 
-            # Early Stopping. Here only compare the current results with
-            # the best results
-            early_stopping(eval_log["ACC_all"], trainer)
-            if early_stopping.early_stop:
-                logging.info("Early stopping")
-                break
+            # # Early Stopping. Here only compare the current results with
+            # # the best results
+            # early_stopping(-eval_log["Abstention loss"], trainer, epoch)
+            # if early_stopping.early_stop:
+            #     logging.info("Early stopping")
+            #     break
 
             # Learning rate decay. Here only compare the current results
             # with the latest results
-            lr_decay(epoch, eval_log["ACC_all"], trainer)
+            lr_decay(epoch, -eval_log["Abstention loss"], trainer)
             # trainer.scheduler.step(epoch)
         else:
             eval_log = eval_op(trainer, test_dataloader,
-                               epoch, mode="test")
+                               epoch, args, mode="test")
+    trainer.save_params()
 
 
 def run_experiment(train_dataset, valid_dataset, test_dataset, data_info, args):
@@ -74,4 +78,4 @@ def run_experiment(train_dataset, valid_dataset, test_dataset, data_info, args):
             training_loop(trainer, train_dataloader,
                           valid_dataloader, test_dataloader, args)
 
-        load_and_eval_model(trainer, test_dataloader)
+        load_and_eval_model(trainer, test_dataloader, args)

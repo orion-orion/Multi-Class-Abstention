@@ -17,7 +17,7 @@ def arg_parse():
     # Dataset part
     parser.add_argument("--dataset", type=str, default="CIFAR10",
                         help="name of dataset;"
-                        "possible are `SVHN`, `CIFAR10`，`CIFAR100`")
+                        "possible are `SVHN`, `CIFAR10`，`CIFAR100`, `vehicle`")
     parser.add_argument("--train_val_frac", nargs='+',  default=[],
                         help=r"Customize the fraction of training samples"
                         r"in all samples, and that of validation samples "
@@ -63,8 +63,15 @@ def arg_parse():
     parser.add_argument("--mao_l_type", type=str, default="MAE",
                         help="Type of Mao et al.'s surrogate l, MAE,"
                         "C-Hinge, or Margin.")
+    parser.add_argument("--our_phi_type", type=str, default="exponential",
+                        help="Type of function phi, exponential, hinge or"
+                        "logistic.")
+    parser.add_argument("--ni_phi_type", type=str, default="exponential",
+                        help="Type of function phi, exponential, hinge or"
+                        "logistic.")
     parser.add_argument("--psi_type", type=str, default="exponential",
-                        help="Type of function psi, exponential or hinge.")
+                        help="Type of function psi, exponential, hinge or"
+                        "logistic.")
     parser.add_argument("--c", type=float, default=0.1,
                         help="Abstention cost.")
     parser.add_argument("--alpha", type=float, default=1,
@@ -79,6 +86,8 @@ def arg_parse():
                         default=5, help="Early stop patience.")
     parser.add_argument("--ld_patience", type=int, default=1,
                         help="Learning rate decay patience.")
+    parser.add_argument("--wait_epoch", type=int, default=100,
+                        help="Epochs to wait before early stopping")
 
     args = parser.parse_args()
     return args

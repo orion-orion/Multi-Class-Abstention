@@ -1,0 +1,38 @@
+Files already downloaded and verified
+Files already downloaded and verified
+Directory checkpoint/CIFAR10/Ours_1764834239 do not exist; creating...
+Config saved to file checkpoint/CIFAR10/Ours_1764834239/config.json.
+Model saved to checkpoint/CIFAR10/Ours_1764834239.pt
+Model saved to checkpoint/CIFAR10/Ours_1764834239.pt
+Model saved to checkpoint/CIFAR10/Ours_1764834239.pt
+Model saved to checkpoint/CIFAR10/Ours_1764834239.pt
+Model saved to checkpoint/CIFAR10/Ours_1764834239.pt
+Model saved to checkpoint/CIFAR10/Ours_1764834239.pt
+Model saved to checkpoint/CIFAR10/Ours_1764834239.pt
+Model saved to checkpoint/CIFAR10/Ours_1764834239.pt
+Model saved to checkpoint/CIFAR10/Ours_1764834239.pt
+Model saved to checkpoint/CIFAR10/Ours_1764834239.pt
+Model saved to checkpoint/CIFAR10/Ours_1764834239.pt
+Model saved to checkpoint/CIFAR10/Ours_1764834239.pt
+Model saved to checkpoint/CIFAR10/Ours_1764834239.pt
+Model saved to checkpoint/CIFAR10/Ours_1764834239.pt
+Model saved to checkpoint/CIFAR10/Ours_1764834239.pt
+Model saved to checkpoint/CIFAR10/Ours_1764834239.pt
+Model saved to checkpoint/CIFAR10/Ours_1764834239.pt
+Model saved to checkpoint/CIFAR10/Ours_1764834239.pt
+Model saved to checkpoint/CIFAR10/Ours_1764834239.pt
+Model saved to checkpoint/CIFAR10/Ours_1764834239.pt
+Model saved to checkpoint/CIFAR10/Ours_1764834239.pt
+Model saved to checkpoint/CIFAR10/Ours_1764834239.pt
+Model saved to checkpoint/CIFAR10/Ours_1764834239.pt
+Model saved to checkpoint/CIFAR10/Ours_1764834239.pt
+Model saved to checkpoint/CIFAR10/Ours_1764834239.pt
+Model saved to checkpoint/CIFAR10/Ours_1764834239.pt
+Model saved to checkpoint/CIFAR10/Ours_1764834239.pt
+Model saved to checkpoint/CIFAR10/Ours_1764834239.pt
+Model saved to checkpoint/CIFAR10/Ours_1764834239.pt
+Model saved to checkpoint/CIFAR10/Ours_1764834239.pt
+Model saved to checkpoint/CIFAR10/Ours_1764834239.pt
+Model saved to checkpoint/CIFAR10/Ours_1764834239.pt
+Model saved to checkpoint/CIFAR10/Ours_1764834239.pt
+Model saved to checkpoint/CIFAR10/Ours_1764834239.pt
